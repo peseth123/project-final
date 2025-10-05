@@ -1,0 +1,46 @@
+service_account_path: "/home/it/Final/ansible/Iac/google.json"
+google_project_id: "vaulted-anthem-469202-m2"
+ssh_public_key_path: "/home/it/.ssh/id_ed25519.pub"
+agent_user: "it"
+
+# Define machine spec
+machine_specs:
+  large:
+    machine_type: "e2-standard-2" #standard 2CPU 1 core and RAM 8GB
+    zone: "asia-southeast1-a"
+    disk_size: 15
+    disk_type: "pd-standard" # we have hdd(pd-standard) , ssd( pd-ssd)
+  medium:
+    machine_type: "e2-medium" # Medium 2CPU 1 Core and RAM 4GB)
+    zone: "asia-southeast1-a"
+    disk_size: 15
+    disk_type: "pd-standard"
+
+ubuntu_specs:
+  v22:
+    image: "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
+  v24:
+    #image: "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts"
+    image: "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts"
+
+# Define machines that we will create
+machines_info:
+  # master requirement : RAM 8G, ....
+  - name: "jenkins"
+    machine_type: "{{ machine_specs.large.machine_type }}"
+    image: "{{ ubuntu_specs.v22.image }}"
+    zone: "{{ machine_specs.large.zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"
+  - name: "sonaqube"
+    machine_type: "{{ machine_specs.large.machine_type }}"
+    image: "{{ ubuntu_specs.v22.image }}"
+    zone: "{{ machine_specs.large.zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"
+  - name: "server3"
+    machine_type: "{{ machine_specs.large.machine_type }}"
+    image: "{{ ubuntu_specs.v22.image }}"
+    zone: "{{ machine_specs.large.zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"

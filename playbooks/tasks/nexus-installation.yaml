@@ -1,0 +1,85 @@
+
+
+    - name: Install required packages
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+        update_cache: yes
+        state: present
+
+    - name: Ensure project directory exists
+      file:
+        path: "{{ project_path }}"
+        
+        state: directory
+
+    - name: Copy docker-compose.yml to server
+      copy:
+        src: /home/it/Final/First_Project/playbooks/tasks/docker-compose-nexus.yaml
+        dest: "{{ project_path }}/docker-compose-nexus.yaml"
+        mode: '0644'
+    - name: Ensure Docker Compose V2 plugin is installed
+      become: true
+      shell: |
+        if ! docker compose version &>/dev/null; then
+          mkdir -p /usr/local/lib/docker/cli-plugins
+          curl -SL https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+          chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+        fi
+      args:
+        executable: /bin/bash
+
+
+    - name: Start Nexus container
+      community.docker.docker_compose_v2:
+        project_src: "{{ project_path }}"
+        state: present
+
+    - name: Create NGINX config for Nexus domain
+      copy:
+        dest: /etc/nginx/sites-available/nexus
+        content: |
+          server {
+              listen 80;
+              server_name {{ domain_name }};
+
+              location / {
+                  proxy_pass http://127.0.0.1:8081;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+              }
+          }
+      notify: Reload NGINX
+
+    - name: Enable Nexus site in NGINX
+      file:
+        src: /etc/nginx/sites-available/nexus
+        dest: /etc/nginx/sites-enabled/nexus
+        state: link
+        force: yes
+
+    - name: Remove default site if exists
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Ensure NGINX is running
+      service:
+        name: nginx
+        state: started
+        enabled: true
+
+    - name: Obtain SSL certificate from Let's Encrypt
+      command: >
+        certbot --nginx -n --agree-tos --redirect
+        --email your-email@example.com
+        -d {{ domain_name }}
+      args:
+        creates: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+    
+
+     

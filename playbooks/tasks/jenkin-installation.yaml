@@ -1,0 +1,109 @@
+---
+# ---------------------------
+# Install dependencies
+# ---------------------------
+- name: Install required packages
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - openjdk-17-jdk
+    state: present
+    update_cache: yes
+
+# ---------------------------
+# Add Jenkins repo and install
+# ---------------------------
+- name: Add Jenkins repository key
+  apt_key:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    state: present
+
+- name: Add Jenkins repository
+  apt_repository:
+    repo: deb https://pkg.jenkins.io/debian-stable binary/
+    state: present
+
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    state: present
+    update_cache: yes
+
+- name: Ensure Jenkins is started and enabled
+  service:
+    name: jenkins
+    state: started
+    enabled: yes
+
+# ---------------------------
+# Install Nginx + Certbot
+# ---------------------------
+- name: Install Nginx and Certbot
+  apt:
+    name:
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: yes
+
+- name: Ensure Nginx is running and enabled
+  service:
+    name: nginx
+    state: started
+    enabled: yes
+
+# ---------------------------
+# Configure Nginx for domain
+# ---------------------------
+- name: Create Nginx configuration for project.peseth.online
+  copy:
+    dest: /etc/nginx/sites-available/project.peseth.online
+    content: |
+      server {
+          listen 80;
+          server_name project.peseth.online;
+
+          location / {
+              proxy_pass http://localhost:8080;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+          }
+      }
+  notify: Reload Nginx
+
+- name: Enable the site
+  file:
+    src: /etc/nginx/sites-available/project.peseth.online
+    dest: /etc/nginx/sites-enabled/project.peseth.online
+    state: link
+  notify: Reload Nginx
+
+# ---------------------------
+# Obtain HTTPS Certificate
+# ---------------------------
+- name: Obtain and install SSL certificate using Certbot (nginx plugin)
+  command: >
+    certbot --nginx
+    -d project.peseth.online
+    --non-interactive
+    --agree-tos
+    --redirect
+    -m smienpeseth@gmail.com
+  args:
+    creates: /etc/letsencrypt/live/project.peseth.online/fullchain.pem
+
+# ---------------------------
+# Handlers
+# ---------------------------
+# - name: Reload Nginx
+#   listen: Reload Nginx
+#   service:
+#     name: nginx
+#     state: reloaded

@@ -1,0 +1,36 @@
+---
+- name: Install Helm
+  hosts: server3
+  become: true
+
+  tasks:
+    - name: Add Docker GPG key (modern method)
+      ansible.builtin.shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/docker-archive-keyring.gpg
+
+    - name: Add Docker repository (modern method)
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu focal stable"
+        filename: docker
+        state: present
+
+    - name: Add Helm GPG key (modern method)
+      ansible.builtin.shell: |
+        curl https://baltocdn.com/helm/signing.asc | gpg --dearmor -o /usr/share/keyrings/helm.gpg
+      args:
+        creates: /usr/share/keyrings/helm.gpg
+
+    - name: Add Helm repository (use supported release)
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main"
+        filename: helm
+        state: present
+        update_cache: false
+      register: helm_repo
+
+    - name: Update apt cache after adding Helm repo
+      ansible.builtin.apt:
+        update_cache: true
+      when: helm_repo.changed

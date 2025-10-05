@@ -1,0 +1,52 @@
+
+- name: Install Docker and configure GCP credentials
+  hosts: sonaqube,server3,jenkins
+  become: yes
+
+  vars:
+    domain_name: "project_nexus.peseth.online"
+    project_path: "/opt/nexus"
+    gcp_key_src: "/home/it/Final/First_Project/google.json"
+    gcp_key_dest: "/etc/gcp/google.json"
+
+  tasks:
+    # Reload (common task if needed)
+    - name: Include reload tasks
+      import_tasks: /home/it/Final/First_Project/playbooks/tasks/reload.yaml
+      when: inventory_hostname == "sonaqube"
+
+    # # Jenkins installation only for jenkins host
+    # - name: Include Docker installation for Jenkins
+    #   import_tasks: /home/it/Final/First_Project/playbooks/tasks/docker.yaml
+    #   when: inventory_hostname == "jenkins"
+
+    # - name: Include Ansible installation for Jenkins
+    #   import_tasks: /home/it/Final/First_Project/playbooks/tasks/ansible-install.yaml
+    #   when: inventory_hostname == "jenkins"
+
+    # - name: Include Jenkins installation
+    #   import_tasks: /home/it/Final/First_Project/playbooks/tasks/jenkin-installation.yaml
+    #   when: inventory_hostname == "jenkins"
+
+    # # Nexus installation only for server3
+    # - name: Include Nexus installation
+    #   import_tasks: /home/it/Final/First_Project/playbooks/tasks/nexus-installation.yaml
+    #   when: inventory_hostname == "server3"
+
+    # Sonaqube installation only for sonaqube
+    - name: Include Sonaqube installation
+      import_tasks: /home/it/Final/First_Project/playbooks/tasks/test-sona.yaml
+      when: inventory_hostname == "sonaqube"
+
+    # GCP credentials setup
+    - name: Ensure /etc/gcp directory exists
+      file:
+        path: "{{ gcp_key_dest | dirname }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy Google Cloud service account JSON
+      copy:
+        src: "{{ gcp_key_src }}"
+        dest: "{{ gcp_key_dest }}"
+        mode: '0600'

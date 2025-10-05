@@ -1,0 +1,40 @@
+---
+- name: Install Docker and configure GCP credentials
+  hosts: sonaqube,server3,jenkins
+  become: yes
+
+  vars_files:
+      - /home/it/Final/First_Project/google.json
+  vars:
+    domain_name: "project_nexus.peseth.online"
+    project_path: "/opt/nexus"
+     
+        
+
+  tasks:
+    - name: Include Docker installation tasks
+      import_tasks: /home/it/Final/First_Project/playbooks/tasks/reload.yaml
+      import_tasks: /home/it/Final/First_Project/playbooks/tasks/docker.yaml
+      import_tasks: /home/it/Final/First_Project/playbooks/tasks/ansible-install.yaml
+      import_tasks: /home/it/Final/First_Project/playbooks/tasks/jenkin-installation.yaml
+
+      when: inventory_hostname == "jenkins"
+      # import_tasks: /home/it/Final/First_Project/playbooks/tasks/nexus-installation.yaml
+      # when: inventory_hostname == "server3"
+      #import_tasks: /home/it/Final/First_Project/playbooks/tasks/sonaqube-installation.yaml
+      #import_tasks: /home/it/Final/First_Project/playbooks/tasks/test-sona.yaml
+      #when: inventory_hostname == "sonaqube"
+     
+    # - name: Ensure /etc/gcp directory exists
+    #   file:
+    #     path: "{{ gcp_key_dest | dirname }}"
+    #     state: directory
+    #     mode: '0755'
+
+    # - name: Copy Google Cloud service account JSON
+    #   copy:
+    #     src: "{{ gcp_key_src }}"
+    #     dest: "{{ gcp_key_dest }}"
+    #     mode: '0600'
+      
+  

@@ -1,0 +1,8 @@
+- name: Obtain HTTPS certificate with Certbot
+  command: >
+    certbot certonly --webroot
+    --webroot-path /var/www/certbot
+    -n --agree-tos --email smienpeseth@gmail.com
+    -d final.peseth.online
+  args:
+    creates: "/etc/letsencrypt/live/final.peseth.online/fullchain.pem"

@@ -1,0 +1,260 @@
+---
+- name: Setup services on all servers
+  hosts:
+    - jenkins
+    - sonarqube
+    - server3
+  become: true
+
+  vars:
+    user_login: it
+    docker_image: "nginx:latest"
+    docker_container_name: "my_nginx"
+    docker_port: "8080"
+    target_user: "{{ ansible_user }}"
+
+
+  tasks:
+
+    # -------------------
+    # Docker Setup
+    # -------------------
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repo
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
+        update_cache: yes
+
+    - name: Add user to docker group
+      user:
+        name: "{{ target_user }}"
+        groups: docker
+        append: yes
+        state: present
+
+    - name: Install pip
+      apt:
+        name: python3-pip
+        state: present
+
+    - name: Install docker SDK for Python
+      pip:
+        name: docker
+
+    - name: Start and enable Docker
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Pull Docker image
+      community.docker.docker_image:
+        name: "{{ docker_image }}"
+        source: pull
+        state: present
+
+    - name: Run Docker container
+      community.docker.docker_container:
+        name: "{{ docker_container_name }}"
+        image: "{{ docker_image }}"
+        state: started
+        restart_policy: always
+        published_ports:
+          - "{{ docker_port }}:80"
+
+    # -------------------
+    # Common Setup
+    # -------------------
+    - name: Install common packages
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - zsh
+          - gnupg
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Change default shell to zsh
+      user:
+        name: "{{ user_login }}"
+        shell: /usr/bin/zsh
+
+    - name: Install Oh My Zsh
+      become: false
+      become_user: "{{ user_login }}"
+      shell: |
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+      args:
+        creates: "/home/{{ user_login }}/.oh-my-zsh"
+
+    - name: Check if .zshrc exists
+      stat:
+        path: "/home/{{ user_login }}/.zshrc"
+      register: zshrc_status
+
+    - name: Copy default .zshrc if missing
+      copy:
+        src: "/home/{{ user_login }}/.oh-my-zsh/templates/zshrc.zsh-template"
+        dest: "/home/{{ user_login }}/.zshrc"
+        remote_src: yes
+        owner: "{{ user_login }}"
+        group: "{{ user_login }}"
+        mode: '0644'
+      when: not zshrc_status.stat.exists
+
+    # -------------------
+    # Portainer Setup
+    # -------------------
+    
+    - name: Create Portainer volume
+      command: docker volume create portainer_data
+      args:
+        creates: /var/lib/docker/volumes/portainer_data
+
+    - name: Run Portainer container
+      community.docker.docker_container:
+        name: portainer
+        image: portainer/portainer-ce:latest
+        state: started
+        restart_policy: always
+        published_ports:
+          - "8000:8000"
+          - "9443:9443"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+          - portainer_data:/data
+
+    # -------------------
+    # Jenkins-specific Setup
+    # -------------------
+    - name: Install GLab
+      shell: curl -s https://glab.cli.tech/install.sh | sh
+      args:
+        creates: /usr/local/bin/glab
+      when: inventory_hostname == "jenkins"
+
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+      when: inventory_hostname == "jenkins"
+
+    - name: Enable Nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+      when: inventory_hostname == "jenkins"
+
+    - name: Install Certbot
+      apt:
+        name:
+          - certbot
+          - python3-certbot-nginx
+        state: present
+      when: inventory_hostname == "jenkins"
+
+    - name: Install Ansible
+      apt:
+        name: ansible
+        state: present
+        update_cache: yes
+      when: inventory_hostname == "jenkins"
+
+    - name: Install OpenJDK 21
+      apt:
+        name: openjdk-21-jdk
+        state: present
+        update_cache: yes
+      when: inventory_hostname == "jenkins"
+
+    - name: Add Jenkins key
+      apt_key:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        state: present
+      when: inventory_hostname == "jenkins"
+
+    - name: Add Jenkins repo
+      apt_repository:
+        repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+      when: inventory_hostname == "jenkins"
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+        update_cache: yes
+      when: inventory_hostname == "jenkins"
+
+    - name: Enable Jenkins
+      service:
+        name: jenkins
+        state: started
+        enabled: yes
+      when: inventory_hostname == "jenkins"
+
+    # -------------------
+    # Helm Setup on server3
+    # -------------------
+    - name: Install Helm dependencies
+      apt:
+        name:
+          - curl
+          - apt-transport-https
+          - gnupg
+        state: present
+        update_cache: yes
+      when: inventory_hostname == "server3"
+
+    - name: Add Helm GPG key
+      shell: curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null
+      args:
+        creates: /usr/share/keyrings/helm.gpg
+      when: inventory_hostname == "server3"
+
+    - name: Add Helm repo
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ {{ ansible_distribution_release }} stable"
+        filename: helm
+        update_cache: false
+      register: helm_repo
+      when: inventory_hostname == "server3"
+
+    - name: Update apt cache
+      apt:
+        update_cache: true
+      when:
+        - inventory_hostname == "server3"
+        - helm_repo.changed
+
+    - name: Install Helm
+      apt:
+        name: helm
+        state: present
+        update_cache: false
+      when: inventory_hostname == "server3"

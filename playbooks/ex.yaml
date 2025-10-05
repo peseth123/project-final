@@ -1,0 +1,102 @@
+---
+- name: Deploy Nexus Repository Manager with Docker Compose
+  hosts: server3
+  gather_facts: yes  # Re-enable facts to automatically detect OS/package manager
+  become: true
+  
+  vars:
+    nexus_project_dir: /opt/nexus
+    nexus_compose_file: "{{ nexus_project_dir }}/docker-compose.yml"
+    nexus_domain: "project_nexus.peseth.online"
+    # Note: Access via port 8081 is still needed unless a reverse proxy is set up.
+    nexus_url: "https://{{ nexus_domain }}:8081" 
+    
+  tasks:
+    # ----------------------------------------------------------------------
+    # PREREQUISITE TASKS: Install Docker and Python dependencies
+    # ----------------------------------------------------------------------
+    - name: Ensure Docker Engine is installed
+      # Uses ansible.builtin.package which handles different distros (apt, yum, dnf)
+      ansible.builtin.package:
+        name: docker.io # Common package name for Docker on Ubuntu/Debian
+        state: present
+    - name: Install pip on Debian/Ubuntu
+      ansible.builtin.apt:
+        name: python3-pip
+        state: present
+        update_cache: yes
+    
+    - name: Ensure Python dependencies for Docker are installed via pip
+      ansible.builtin.pip:
+        name:
+          - docker
+        state: present
+        
+    - name: Ensure Docker service is running and enabled
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add remote user to the 'docker' group
+      # This is crucial for non-root users to run docker commands,
+      # though become: true often bypasses it. Good practice nonetheless.
+      ansible.builtin.user:
+        name: "{{ ansible_user | default(omit) }}" # Uses the connection user
+        groups: docker
+        append: true
+      ignore_errors: true # Ignore if ansible_user is not defined/found
+
+    # ----------------------------------------------------------------------
+    # NEXUS DEPLOYMENT TASKS (Original tasks below)
+    # ----------------------------------------------------------------------
+
+    - name: Create project directory for Nexus
+      ansible.builtin.file:
+        path: "{{ nexus_project_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Write docker-compose.yml to project directory
+      ansible.builtin.copy:
+        dest: "{{ nexus_compose_file }}"
+        content: |
+          version: "3.7"
+          services:
+            nexus:
+              image: sonatype/nexus3:latest
+              container_name: nexus
+              hostname: nexus
+              restart: always
+              ports:
+                - "8081:8081"
+              volumes:
+                - nexus-data:/sonatype-work
+              environment:
+                # Using the hardcoded domain for the base URL
+                NEXUS_BASE_URL: "https://project_nexus.peseth.online"
+                NEXUS_MAX_HEAP: "2048m"
+          volumes:
+            nexus-data:
+              driver: local
+        mode: '0644'
+
+    - name: Deploy Nexus containers using docker-compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ nexus_project_dir }}"
+        state: present
+      tags:
+        - deploy
+
+    - name: Wait for Nexus to start and get admin password
+      ansible.builtin.shell:
+        cmd: docker exec nexus cat /sonatype-work/nexus3/admin.password
+      register: nexus_admin_password
+      until: nexus_admin_password.stdout is defined and (nexus_admin_password.stdout | length) > 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Display Initial Admin Password
+      ansible.builtin.debug:
+        msg: "Nexus is deployed. Initial login password: {{ nexus_admin_password.stdout | trim }}. Access via: {{ nexus_url }}"

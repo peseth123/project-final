@@ -1,0 +1,200 @@
+---
+# SonarQube + NGINX + HTTPS (Certbot)
+
+- name: Install required packages
+  apt:
+    name:
+      - docker.io
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+      - curl
+    update_cache: true
+
+- name: Install Docker Compose v2 plugin
+  shell: |
+    mkdir -p /usr/local/lib/docker/cli-plugins
+    curl -SL https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64 \
+      -o /usr/local/lib/docker/cli-plugins/docker-compose
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+  args:
+    creates: /usr/local/lib/docker/cli-plugins/docker-compose
+
+- name: Create SonarQube directory
+  file:
+    path: /opt/sonarqube
+    state: directory
+
+- name: Copy docker-compose.yml
+  copy:
+    dest: /opt/sonarqube/docker-compose.yml
+    content: |
+      version: '3.8'
+      services:
+        sonarqube:
+          image: sonarqube:lts
+          container_name: sonarqube
+          depends_on:
+            - db
+          environment:
+            - SONAR_JDBC_URL=jdbc:postgresql://db:5432/sonarqube
+            - SONAR_JDBC_USERNAME=sonar
+            - SONAR_JDBC_PASSWORD=sonarpass
+          volumes:
+            - sonarqube_data:/opt/sonarqube/data
+            - sonarqube_extensions:/opt/sonarqube/extensions
+            - sonarqube_logs:/opt/sonarqube/logs
+          ports:
+            - "127.0.0.1:9000:9000"
+          restart: unless-stopped
+
+        db:
+          image: postgres:13
+          container_name: sonardb
+          environment:
+            - POSTGRES_USER=sonar
+            - POSTGRES_PASSWORD=sonarpass
+            - POSTGRES_DB=sonarqube
+          volumes:
+            - postgresql:/var/lib/postgresql/data
+          restart: unless-stopped
+
+      volumes:
+        sonarqube_data:
+        sonarqube_extensions:
+        sonarqube_logs:
+        postgresql:
+
+- name: Start SonarQube stack with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: /opt/sonarqube
+    state: present
+
+- name: Create systemd service for SonarQube
+  copy:
+    dest: /etc/systemd/system/sonarqube.service
+    content: |
+      [Unit]
+      Description=SonarQube via Docker Compose
+      Requires=docker.service
+      After=docker.service
+
+      [Service]
+      Type=exec
+      WorkingDirectory=/opt/sonarqube
+      ExecStart=/usr/local/lib/docker/cli-plugins/docker-compose up --detach
+      ExecStop=/usr/local/lib/docker/cli-plugins/docker-compose down
+      TimeoutStartSec=0
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Reload systemd
+  command: systemctl daemon-reload
+
+- name: Enable and start SonarQube service
+  service:
+    name: sonarqube
+    enabled: true
+    state: started
+
+# 🔧 Configure NGINX for initial HTTP and Certbot challenge
+- name: Create certbot webroot directory
+  file:
+    path: /var/www/certbot
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Configure NGINX for HTTP and Certbot
+  copy:
+    dest: /etc/nginx/sites-available/sonarqube
+    content: |
+      server {
+          listen 80;
+          server_name final.peseth.online;
+
+          location /.well-known/acme-challenge/ {
+              root /var/www/certbot;
+          }
+
+          location / {
+              proxy_pass http://127.0.0.1:9000;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+          }
+      }
+  notify: Reload NGINX
+
+- name: Enable HTTP site
+  file:
+    src: /etc/nginx/sites-available/sonarqube
+    dest: /etc/nginx/sites-enabled/sonarqube
+    state: link
+    force: true
+
+- name: Remove default site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Ensure NGINX is running
+  service:
+    name: nginx
+    state: started
+    enabled: true
+
+- name: Obtain HTTPS certificate with Certbot
+  command: >
+    certbot certonly --webroot
+    --webroot-path /var/www/certbot
+    -n --agree-tos --email smienpeseth@gmail.com
+    -d final.peseth.online
+  args:
+    creates: "/etc/letsencrypt/live/final.peseth.online/fullchain.pem"
+
+# 🔐 Replace HTTP config with HTTPS config
+- name: Configure NGINX for HTTPS
+  copy:
+    dest: /etc/nginx/sites-available/sonarqube
+    content: |
+      server {
+          listen 80;
+          server_name final.peseth.online;
+          return 301 https://$host$request_uri;
+      }
+
+      server {
+          listen 443 ssl;
+          server_name final.peseth.online;
+
+          ssl_certificate /etc/letsencrypt/live/final.peseth.online/fullchain.pem;
+          ssl_certificate_key /etc/letsencrypt/live/final.peseth.online/privkey.pem;
+          include /etc/letsencrypt/options-ssl-nginx.conf;
+          ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+          location / {
+              proxy_pass http://127.0.0.1:9000;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+          }
+      }
+  notify: Reload NGINX
+
+- name: Reload NGINX to apply HTTPS config
+  service:
+    name: nginx
+    state: reloaded
+
+# 🔁 Handlers
+    handlers:
+    - name: Reload NGINX
+      service:
+        name: nginx
+        state: reloaded

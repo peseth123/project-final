@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "vaulted-anthem-469202-m2",
+  "private_key_id": "3de4faa139750bc761f6a5076bb17f70f548aea4",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCMbr3NA0GSqQxy\nGkx0A0G7k4MezfMufngxXyDbrgIb1YRgN81s65VOaVZblKqqkDhYuaMZ/Pg9GBy5\nyiGud7bVOUU3hmtUcU/nLgsAGM5alN0Px2IcQFVXWdwguSUYWnqzcMJPq+t9TdBm\nNA+tcAXz/NaCv1wYsEDUlem2GXftiSFoe7iCBUEF1NjfJpFtq506/QpcdBiih/GV\nxQGXVOpSENrdVhTvXL5bWVaJy0wFjN8sCPx7oScR+gBv6x9fsv7whbjaIoSGlV/Y\nIAsdRRkr8P9bYXu06pB3WNWihO+jOJwduzyJH553zns6ach4PxqeNPM0AEPo3qJU\nmHq0SHszAgMBAAECggEAOHTQ0xmrA/X4LesKr10b0Pglr32mdRuc4GRZBlf3Ow9k\nr3XfnRk8phBNCnZDAl0GegzvWCRN++m0qrBrSAOSujfS7taYUZNYRx1IiNpwIxRT\npuNGOwtWA875YyJrmlXNnFQJmhQIkRB2ZpApeVVe307XQisCMF6zQYOfOHkWsKRn\nDNPFwTWcmWh8fieXqB9iAGno/IuyF/Wa5iCxbzbqtKwXxKdnm8M7e3CCVXnzTSH6\njZsNUvH2APa3dY/Zpo0PdoPrjsNdpjkl9CxjaPTVpPQMrQX3cIv1UzdBOYxFqaFO\nL2WeQTjia/Xx2xOSutX6iU6SrUjCKTd+rayL+GBxeQKBgQDCZucK3BPMdJw+oLGm\nU9oXoqwnUuTzx89rLfZolm44LARqFgdSeaYUsyuJedy7WY93fhvd3xZaQo0E7/AV\nq5kcQwNJzYLC99WZNhbThmTFCdPi+L/LimiuMa5JuAoiLVtmXVQda5vgeWIMksxN\nDvOzqXLk0KnxYVwaODryJ8V3/wKBgQC47g/lon2Cr2PShnlytO6QLZ7FLxPa59dJ\n7EuOSYJL24ju+Ai6/HkO0YDPoyI9UDmImlT6y+06exlgtDuaESibFMg+9y43DaD7\nkLBTPTXT6qyqa4aQoY850N5XPq2HvuI8NMnnEnwtLlT6e/5lZkaKUj+4NEumPK1L\nf26vuficzQKBgQC8Vr9+SOsxiMQa9MpHzzMa9PH+gxPnjmxIdVYly5/q8dIxCTh8\n0fhyU4dZgGO2arVQ2i+bS9e3CIThBKhABmim9dGIvf7ybvNUpQ+GTMzyDGxomAAQ\n7P4vzVgCebfvlqvXR5IHksqItnCkp9Ag09yM8hyqy/HpNh7qFBIfqyJn9wKBgQCb\nBOyMiYZ+uzmJa7J4xlTIxYU3M/yH3xqoXA0GDHbN0gzajU78N9He6x34cH6uOQbR\njNW5mqKVCEXAu7TOtJ1+SpCFv7yc567P0n0Med4ac7kj7pjRuqyOQZlwNxlOFmQd\nJf8t1WAEm7cedjxNkcuF/eZuKmBTzL9T71HAurs97QKBgGBJ+Zhtlz38nypL9NBO\nx+iFgH7nI6T9VnFseAijiV8qbcmY9q7H/Xr2XxDoNiWX/i5mj3cIg2D2pCabSZK2\nMB2qVecQzn/j8E3dZIJpq8boYadjxvT6Zbs2LUJsdEiYFN7gZmDbpDnrMNPOGVb1\nA3ATrKv0VIRKyVXDuvt2bBBv\n-----END PRIVATE KEY-----\n",
+  "client_email": "ansible-iac-account@vaulted-anthem-469202-m2.iam.gserviceaccount.com",
+  "client_id": "108832191825661028772",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/ansible-iac-account%40vaulted-anthem-469202-m2.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

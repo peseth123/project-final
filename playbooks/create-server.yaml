@@ -1,0 +1,7 @@
+- name: Create master machines 
+  hosts: localhost 
+  vars_files: 
+    - /home/it/Final/First_Project/vars/machines.yaml
+  tasks: 
+    - name: Create all server
+      import_tasks: /home/it/Final/First_Project/playbooks/tasks/server-create-task.yaml
